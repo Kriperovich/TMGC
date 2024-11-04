@@ -1,0 +1,2 @@
+# TMGC
+Tamagochi on python
