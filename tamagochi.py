@@ -15,6 +15,7 @@ hunger = 5
 poop_count = 0
 friendship = 0
 pet_name = ""
+selected_pet_image = "tmgc.png"  # По умолчанию изображение тамагочи
 poop_timer = time.time()  # Таймер для случайного добавления испражнений
 
 # Инициализация Pygame
@@ -24,9 +25,12 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Тамагочи")
 clock = pygame.time.Clock()
 
-# Загрузка изображений
-tamagotchi_img = pygame.image.load("tmgc.png")  # Изображение тамагочи
-coin_img = pygame.image.load("coin.png")  # Изображение монетки
+# Загрузка изображений питомцев
+pet_images = {
+    "cat": pygame.image.load("cat.png"),
+    "dog": pygame.image.load("hotdog.png"),
+    "human": pygame.image.load("hooman.png")
+}
 
 # Функция для отрисовки текста
 def draw_text(text, x, y, color=BLACK):
@@ -37,42 +41,101 @@ def draw_text(text, x, y, color=BLACK):
 def save_state():
     if pet_name:
         filename = f"TMGC_{pet_name}.txt"
-        data = f"TMGC\n{pet_name}\n{money}\n{hunger}\n{poop_count}\n{friendship}\n"
-        with open(filename, "w", encoding='utf-8') as f:  # Используем UTF-8
+        data = f"TMGC\n{pet_name}\n{money}\n{hunger}\n{poop_count}\n{friendship}\n{selected_pet_image}\n"
+        with open(filename, "w", encoding='utf-8') as f:
             f.write(data)
         print(f"Состояние сохранено в {filename}")
 
 # Функция для загрузки состояния из файла
-def load_state():
-    global pet_name, money, hunger, poop_count, friendship
-    found_file = False
-    for filename in os.listdir():
-        if filename.startswith("TMGC_") and filename.endswith(".txt"):
-            found_file = True
-            print(f"Найден файл сохранения: {filename}")
-            with open(filename, "r", encoding='utf-8') as f:  # Используем UTF-8
-                lines = f.read().splitlines()
-                if lines[0].strip() == "TMGC":
-                    pet_name = lines[1].strip()
-                    money = int(lines[2].strip())
-                    hunger = int(lines[3].strip())
-                    poop_count = int(lines[4].strip())
-                    friendship = int(lines[5].strip())
-                    print("Состояние успешно загружено.")
-                    return True  # Успешная загрузка
-    if not found_file:
-        print("Файл сохранения не найден.")
-    return False  # Файл не найден или не подходит
+def load_state(filename):
+    global pet_name, money, hunger, poop_count, friendship, selected_pet_image
+    with open(filename, "r", encoding='utf-8') as f:
+        lines = f.read().splitlines()
+        if lines[0].strip() == "TMGC":
+            pet_name = lines[1].strip()
+            money = int(lines[2].strip())
+            hunger = int(lines[3].strip())
+            poop_count = int(lines[4].strip())
+            friendship = int(lines[5].strip())
+            selected_pet_image = lines[6].strip()
+            print(f"Состояние успешно загружено из {filename}")
+            return True
+    print("Файл сохранения не найден или поврежден.")
+    return False
+
+# Функция для выбора сохранения
+def select_save_file():
+    save_files = [f for f in os.listdir() if f.startswith("TMGC_") and f.endswith(".txt")]
+    if not save_files:
+        print("Нет доступных файлов сохранения.")
+        return None
+
+    selected_index = 0
+    selecting = True
+
+    while selecting:
+        screen.fill(WHITE)
+        draw_text("Выберите файл сохранения:", 150, 50)
+
+        for i, filename in enumerate(save_files):
+            color = BLACK if i != selected_index else (0, 0, 255)  # Синий для выбранного
+            draw_text(filename, 200, 100 + i * 30, color)
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    selected_index = (selected_index - 1) % len(save_files)
+                elif event.key == pygame.K_DOWN:
+                    selected_index = (selected_index + 1) % len(save_files)
+                elif event.key == pygame.K_RETURN:
+                    return save_files[selected_index]
+
+        clock.tick(30)
+
+# Функция для выбора питомца
+def choose_pet():
+    global selected_pet_image
+    choosing = True
+
+    while choosing:
+        screen.fill(WHITE)
+        draw_text("Выберите питомца:", 150, 50)
+        draw_text("1. Кот", 150, 100)
+        draw_text("2. Собака", 150, 130)
+        draw_text("3. Человек", 150, 160)
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    selected_pet_image = "cat.png"
+                    choosing = False
+                elif event.key == pygame.K_2:
+                    selected_pet_image = "hotdog.png"
+                    choosing = False
+                elif event.key == pygame.K_3:
+                    selected_pet_image = "hooman.png"
+                    choosing = False
+
+        clock.tick(30)
 
 # Функция ввода имени
 def input_pet_name():
     global pet_name
-    entering_name = True
     input_text = ""
+    entering_name = True
 
     while entering_name:
         screen.fill(WHITE)
-        draw_text("Введите имя вашего питомца: " + input_text, 150, 150)
+        draw_text(f"Введите имя питомца: {input_text}", 150, 150)
         pygame.display.flip()
 
         for event in pygame.event.get():
@@ -88,7 +151,28 @@ def input_pet_name():
                 else:
                     input_text += event.unicode
 
-        clock.tick(30)  # Ограничение FPS для цикла ввода имени
+        clock.tick(30)
+
+# Функция смерти питомца
+def pet_died():
+    global pet_name
+    screen.fill(WHITE)
+    draw_text(f"{pet_name} умер", 200, 150, color=(255, 0, 0))
+    draw_text("Закройте это окно, чтобы продолжить", 150, 200)
+    pygame.display.flip()
+
+    # Удаление сохранения
+    save_file = f"TMGC_{pet_name}.txt"
+    if os.path.exists(save_file):
+        os.remove(save_file)
+        print(f"Сохранение {save_file} удалено.")
+
+    # Ожидание закрытия окна
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
 # Основной игровой цикл
 def main_game():
@@ -99,9 +183,10 @@ def main_game():
     while running:
         screen.fill(WHITE)
 
-        # Отображение изображения тамагочи
-        tamagotchi_rect = tamagotchi_img.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
-        screen.blit(tamagotchi_img, tamagotchi_rect)
+        # Отображение изображения питомца
+        pet_image = pygame.image.load(selected_pet_image)  # Загружаем изображение из переменной
+        pet_rect = pet_image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
+        screen.blit(pet_image, pet_rect)
 
         # Отображение интерфейса и статистики
         draw_text(f"1. Заработок", 50, 50)
@@ -122,45 +207,39 @@ def main_game():
         # Обработка событий
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                save_state()
                 pygame.quit()
                 sys.exit()
-
             elif event.type == pygame.KEYDOWN:
-                # Кнопка 1 - заработок (включает кликер)
                 if event.key == pygame.K_1:
                     show_clicker()
-
-                # Кнопка 2 - покормить зверька
                 elif event.key == pygame.K_2:
                     if money >= 10:
                         money -= 10
                         hunger += 1
-
-                # Кнопка 3 - убрать испражнения
                 elif event.key == pygame.K_3:
                     if poop_count > 0:
                         poop_count -= 1
-
-                # Кнопка 4 - погладить
                 elif event.key == pygame.K_4:
-                    friendship += 1  # Увеличение дружбы
-
-                # Кнопка 5 - сохранить состояние
+                    friendship += 1
                 elif event.key == pygame.K_5:
                     save_state()
-
-                # Кнопка Delete - выход и сохранение
                 elif event.key == pygame.K_DELETE:
-                    save_state()  # Сохранение состояния
-                    pygame.quit()  # Выход из игры
-                    sys.exit()  # Завершение программы
+                    save_state()
+                    pygame.quit()
+                    sys.exit()
 
         # Рандомное увеличение испражнений
         if time.time() - poop_timer > random.randint(5, 15):
             poop_count += 1
-            poop_timer = time.time()  # Сброс таймера
+            poop_timer = time.time()
 
-        clock.tick(30)  # Ограничение FPS для основного игрового цикла
+        # Проверка на смерть
+        if poop_count >= 50:
+            pet_died()
+            running = False
+
+        clock.tick(30)
 
 # Кликерный режим
 def show_clicker():
@@ -172,9 +251,8 @@ def show_clicker():
         draw_text("Нажмите на монетку для заработка!", 180, 100)
         draw_text("Вернуться назад (ESC)", 50, 350)
 
-        # Отображение изображения монетки
-        coin_rect = coin_img.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
-        screen.blit(coin_img, coin_rect)
+        coin_rect = pygame.image.load("coin.png").get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        screen.blit(pygame.image.load("coin.png"), coin_rect)
 
         pygame.display.flip()
 
@@ -182,20 +260,21 @@ def show_clicker():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     in_clicker = False
-
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                # Проверка, кликнули ли по монетке
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                if coin_rect.collidepoint(mouse_x, mouse_y):
+                if coin_rect.collidepoint(pygame.mouse.get_pos()):
                     money += 10
 
-        clock.tick(30)  # Ограничение FPS для кликерного режима
+        clock.tick(30)
 
 # Запуск программы
-if not load_state():  # Попытка загрузить данные, если нет файла, вводим имя
+save_file = select_save_file()
+if save_file:
+    load_state(save_file)
+else:
+    choose_pet()
     input_pet_name()
-main_game()  # Основной игровой цикл
+
+main_game()
